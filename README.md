@@ -120,6 +120,9 @@ Full narratives: docs/IQ2_COMPATIBILITY_JOURNEY.md, docs/IQ3_COMPATIBILITY_JOURN
 - IQ3_XXS (10-shard, prometheusAIR): packed, geometry verified (ALL LAYERS PASS),
   server startup and 128-token generation tested at 96K context on 2× RTX 4090 + 128 GB RAM.
 - Benchmark numbers: docs/BENCHMARK.md. Known failure modes and fixes: docs/TROUBLESHOOTING.md.
+- Upstream: these findings were reported to Niko1221/Strata as issue #6640
+  (https://github.com/Niko1221/Strata/issues/6640), with the full write-up in
+  docs/UPSTREAM_ISSUE_DRAFT.md.
 
 ## Credits & licenses
 
