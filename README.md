@@ -77,6 +77,43 @@ python tools\verify_kv_mapping.py D:\models\DS41-IQ2XXS\pack
 
 See docs/INSTALL.md for prerequisites and disk requirements.
 
+## Engineering evolution — what IQ2 established, what IQ3 added
+
+The two quantizations were not fixed in parallel. **IQ2_XXS came first** and produced the
+reusable method (pack-only fixes, zero-copy hardlinking, the Engram side-pack contract,
+the preflight verifier, the benchmark methodology). **IQ3_XXS reused all of it** and
+needed four *new* fixes because its GGUF header omits keys IQ2 carries natively:
+
+| Fix | First needed by | Where |
+|---|---|---|
+| Pack-only method (`ds4.txt` is the geometry source) | IQ2_XXS | docs/COMPATIBILITY_METHOD.md |
+| Zero-copy packing / hardlink sharing | IQ2_XXS | docs/COMPATIBILITY_METHOD.md |
+| Engram side-pack contract + verifier | IQ2_XXS | docs/ENGRAM_INTEGRATION.md |
+| KV-source fallback | **IQ3_XXS** | docs/IQ3_COMPATIBILITY_JOURNEY.md |
+| Candidate-geometry fallback (0xC0000094) | **IQ3_XXS** | docs/IQ3_COMPATIBILITY_JOURNEY.md |
+| `engram.key_length` / `engram.pad_id` aliases | **IQ3_XXS** | docs/ENGRAM_INTEGRATION.md |
+| Side-Engram with in-shard Q8_0 tables | **IQ3_XXS** | docs/ENGRAM_INTEGRATION.md |
+
+Full narratives: docs/IQ2_COMPATIBILITY_JOURNEY.md, docs/IQ3_COMPATIBILITY_JOURNEY.md.
+
+## Compatibility matrix
+
+| Quant | GGUF carries KV/index/candidate keys | Engram in-shard | Packer result | Engine result |
+|---|---|---|---|---|
+| IQ2_XXS (Abiray uncensored GSQ-RCO, 6 shards) | ✅ natively | — (side IQ4_NL) | no fallbacks exercised | ✅ loaded, benchmarked (96K ctx) |
+| IQ3_XXS (prometheusAIR, 10 shards) | ❌ all missing | Q8_0 (unsupported dtype) | 4 fallbacks + side-IQ4_NL swap | ✅ loaded, benchmarked (96K ctx) |
+| Other deepseek41 quants | unknown | unknown | preflight: `derive_kv_sources.py` then `verify_kv_mapping.py` | not tested — report back |
+
+## Common errors → fixes
+
+| Engine / packer symptom | Cause | Fix |
+|---|---|---|
+| `layer 2: compress ratio 2 without a KV source of that ratio before it` | GGUF omits `kv_source_layers` / `indexer.source_layers` | fix 1 (KV-source fallback) |
+| First forward crashes, exit `0xC0000094` | GGUF omits candidate keys; engine divides by `cand_blk = 0` | fix 2 (candidate-geometry fallback) |
+| Packer `TypeError: required argument is not an integer` in `write_engram()` | `engram.key_length`/`engram.pad_id` spellings not aliased | fix 3 (key aliases) |
+| Engine rejects Engram table dtype (`unsupported table type`) | in-shard Q8_0 Engram; engine has no Q8_0 kernel | fix 4 (side IQ4_NL set via `--engram`) |
+| `split_ple()` fails on side Engram set | GGUF lacks `engram.num_embeddings` | fix 4a (fill from shards' table dims) |
+
 ## Status
 
 - IQ2_XXS (6-shard, Abiray uncensored GSQ-RCO): packed, geometry verified, server load tested.

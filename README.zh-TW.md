@@ -72,6 +72,42 @@ python tools\verify_kv_mapping.py D:\models\DS41-IQ2XXS\pack
 
 硬體需求與磁碟空間見 docs/INSTALL.md。
 
+## 工程演進 — IQ2 建立方法，IQ3 新增修復
+
+兩個量化並非同時修復。**IQ2_XXS 先完成**，產出可重用的方法（只動打包器、零複製硬連結、
+Engram side-pack 契約、preflight 驗證工具、benchmark 方法）。**IQ3_XXS 全部沿用**，並因其
+GGUF header 缺少 IQ2 原生就有的 keys 而需要四個*新*修復：
+
+| 修復 | 首次需要的量化 | 文件 |
+|---|---|---|
+| 只動打包器的方法（`ds4.txt` 是 geometry 來源） | IQ2_XXS | docs/COMPATIBILITY_METHOD.md |
+| 零複製打包／硬連結共享 | IQ2_XXS | docs/COMPATIBILITY_METHOD.md |
+| Engram side-pack 契約＋驗證工具 | IQ2_XXS | docs/ENGRAM_INTEGRATION.md |
+| KV-source fallback | **IQ3_XXS** | docs/IQ3_COMPATIBILITY_JOURNEY.md |
+| Candidate-geometry fallback（0xC0000094） | **IQ3_XXS** | docs/IQ3_COMPATIBILITY_JOURNEY.md |
+| `engram.key_length`／`engram.pad_id` alias | **IQ3_XXS** | docs/ENGRAM_INTEGRATION.md |
+| Side-Engram 處理 shard 內建 Q8_0 表 | **IQ3_XXS** | docs/ENGRAM_INTEGRATION.md |
+
+完整過程：docs/IQ2_COMPATIBILITY_JOURNEY.md、docs/IQ3_COMPATIBILITY_JOURNEY.md。
+
+## 相容性矩陣
+
+| 量化 | GGUF 帶 KV/index/candidate keys | Engram 位置 | 打包結果 | 引擎結果 |
+|---|---|---|---|---|
+| IQ2_XXS（Abiray uncensored GSQ-RCO，六 shard） | ✅ 原生 | —（side IQ4_NL） | 未觸發任何 fallback | ✅ 已載入、已 benchmark（96K ctx） |
+| IQ3_XXS（prometheusAIR，十 shard） | ❌ 全缺 | Q8_0（引擎不支援） | 4 個 fallback＋side-IQ4_NL 置換 | ✅ 已載入、已 benchmark（96K ctx） |
+| 其他 deepseek41 量化 | 未知 | 未知 | preflight：先 `derive_kv_sources.py` 再 `verify_kv_mapping.py` | 未測試 — 歡迎回報 |
+
+## 常見錯誤 → 修法
+
+| 症狀 | 原因 | 修法 |
+|---|---|---|
+| `layer 2: compress ratio 2 without a KV source of that ratio before it` | GGUF 缺 `kv_source_layers`／`indexer.source_layers` | 修復 1（KV-source fallback） |
+| 首次 forward 崩潰，exit `0xC0000094` | GGUF 缺 candidate keys；引擎以 `cand_blk = 0` 除法 | 修復 2（candidate-geometry fallback） |
+| 打包器 `TypeError: required argument is not an integer`（`write_engram()`） | `engram.key_length`／`engram.pad_id` 未 alias | 修復 3（key aliases） |
+| 引擎拒載 Engram 表（`unsupported table type`） | shard 內建 Q8_0 Engram；引擎無 Q8_0 kernel | 修復 4（`--engram` 接 side IQ4_NL） |
+| `split_ple()` 對 side Engram 集失敗 | GGUF 缺 `engram.num_embeddings` | 修復 4a（由 shard 表 dims 補上） |
+
 ## 狀態
 
 - IQ2_XXS（六 shard，Abiray uncensored GSQ-RCO）：已打包、geometry 已驗證、server 載入已測試。
