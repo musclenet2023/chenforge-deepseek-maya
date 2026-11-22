@@ -1,0 +1,38 @@
+# --- DeepSeek V4.1 Flash / Maya DS4 Windows staging repository ---
+
+# model weights and pack outputs - never publish
+*.gguf
+*.bin
+engram.bin
+pack/
+models/
+!pack/.gitkeep
+
+# caches, logs, state
+logs/
+log/
+*.log
+cache/
+*.cache
+slots/
+runtime/
+hermes-home*/
+downloads/
+
+# credentials and machine-specific config
+*token*
+*credential*
+*.env
+*.json.bak
+cc.json
+prom.json
+deepseek-uncensored-*.json
+
+# editor / OS
+.vs/
+.vscode/
+__pycache__/
+*.pyc
+Thumbs.db
+desktop.ini
+RELEASE_REVIEW.md
